@@ -584,6 +584,40 @@ proc printDevice {} {
   return $out
 }
 
+proc jsonStat {} {
+  global REQUESTS
+  global DAYS
+  global MODE_BY_NAME
+  global thermostat
+
+  set connected [connect]
+
+
+  if { $connected != 0} {
+    puts "\{ \"error\" : \"Connection failed.\" \}"
+    exit -1
+  }
+
+  set currentTime [currentTime]
+  set currentDate [currentDate]
+  set raw_status [writeRequest $REQUESTS(setTime) "[dateToHex $currentDate][timeToHex $currentTime]"]
+  parseMode $raw_status
+
+  append out "\{\n"
+  append out "  \"mac\" : \"$thermostat(mac)\",\n"
+  append out "  \"temperature\" : $thermostat(temperature),\n"
+  append out "  \"valve\" : $thermostat(valve),\n"
+  append out "  \"mode\" : [getModeAsJson],\n"
+  if {[hexToDecimal $thermostat(mode)] & $MODE_BY_NAME(vacation)} {
+    append out "  \"vacation\" : \"$thermostat(vacation_date) $thermostat(vacation_time)\",\n"
+  } else {
+    append out "  \"vacation\" : null\n"
+  }
+ append out "\}"
+
+  puts $out
+}
+
 proc toJson {} {
   global REQUESTS
   global DAYS
@@ -1120,6 +1154,9 @@ proc doCommand {} {
     }
     ^json$ {
       toJson
+    }
+    ^jsonStat$ {
+     jsonStat
     }
     ^status$ {
       init [expr $INIT(device) + $INIT(mode) + $INIT(timer) + $INIT(serial)]
